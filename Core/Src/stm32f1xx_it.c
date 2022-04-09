@@ -209,7 +209,18 @@ void USART2_IRQHandler(void)
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
-
+	volatile uint8_t receive;
+	if(huart2.Instance->SR & UART_FLAG_RXNE)
+	{
+		receive = huart2.Instance->DR;
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+	}
+	//idle interrupt ¿ÕÏÐÖÐ¶Ï
+	else if(huart2.Instance->SR & UART_FLAG_IDLE)
+	{
+		receive = huart2.Instance->DR;
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	}
   /* USER CODE END USART2_IRQn 1 */
 }
 
@@ -223,7 +234,18 @@ void USART3_IRQHandler(void)
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
   /* USER CODE BEGIN USART3_IRQn 1 */
-
+	volatile uint8_t receive;
+	if(huart3.Instance->SR & UART_FLAG_RXNE)
+	{
+		receive = huart3.Instance->DR;
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
+	}
+	//idle interrupt ¿ÕÏÐÖÐ¶Ï
+	else if(huart3.Instance->SR & UART_FLAG_IDLE)
+	{
+		receive = huart3.Instance->DR;
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
+	}
   /* USER CODE END USART3_IRQn 1 */
 }
 
