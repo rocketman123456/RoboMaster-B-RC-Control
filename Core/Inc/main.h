@@ -53,7 +53,15 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+#define BUFFER_LENGTH 64
 
+extern int current_buffer_length_uart2;
+extern uint8_t single_buffer_uart2;
+extern uint8_t read_buffer_uart2[BUFFER_LENGTH + 1];
+
+extern int current_buffer_length_uart3;
+extern uint8_t single_buffer_uart3;
+extern uint8_t read_buffer_uart3[BUFFER_LENGTH + 1];
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

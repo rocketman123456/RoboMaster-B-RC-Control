@@ -198,5 +198,176 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
+/**
+  * @brief      串口回调函数,被串口的中断函数所调用
+  * @param[in]  串口
+  * @return     none
+  */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  // 判断是由哪个串口触发的中断
+  if(huart->Instance == USART2)
+  {
+    read_buffer_uart2[current_buffer_length_uart2] = single_buffer_uart2;
+    current_buffer_length_uart2++;
+    // 接收到数据马上使用串口2发送出去
+    // HAL_UART_Transmit(&huart1, &single_buffer, 1, 100);
+    // 重新使能串口1接收中断(否则只能接收一次)
+    HAL_UART_Receive_IT(&huart2, &single_buffer_uart2, 1);
+  }
+  if(huart->Instance == USART3)
+  {
+    read_buffer_uart3[current_buffer_length_uart3] = single_buffer_uart3;
+    current_buffer_length_uart3++;
+    // 接收到数据马上使用串口3发送出去
+    // HAL_UART_Transmit(&huart1, &single_buffer, 1, 100);
+    // 重新使能串口1接收中断(否则只能接收一次)
+    HAL_UART_Receive_IT(&huart3, &single_buffer_uart3, 1);
+  }
+}
 
+/**
+  * @brief      空闲中断处理函数(自己写的),目的是为了数据多发或者发送较快时不会出错
+  * @param[in]  串口
+  * @return     none
+  */
+void UART_IDLECallBack(UART_HandleTypeDef *huart)
+{
+  /*uart1 idle processing function*/
+  if(huart == &huart2)
+  {
+    current_buffer_length_uart2 = 0;
+    PROTOCOL_Handle(huart);
+    __HAL_UART_CLEAR_IDLEFLAG(huart); // 清除空闲中断标志(否则会一直不断进入中断)
+  }
+  if(huart == &huart3)
+  {
+    current_buffer_length_uart2 = 0;
+    PROTOCOL_Handle(huart);
+    __HAL_UART_CLEAR_IDLEFLAG(huart); // 清除空闲中断标志(否则会一直不断进入中断)
+  }
+}
+
+/**
+  * @brief      上下位机通讯协议
+  * @return     none
+  */
+void PROTOCOL_Handle(UART_HandleTypeDef *huart)
+{
+  // CRC校验
+  uint8_t low_value = 0x00;
+  uint8_t high_value = 0x00;
+  CRC16_Modbus(read_buffer, 6, &low_value, &high_value);
+  if (read_buffer[6] != low_value || read_buffer[7] != high_value)
+      return;
+  switch (read_buffer[1])
+  {
+    case 0x01: // 控制灯改变亮灭状态
+    {
+      if (read_buffer[2] == 0x01)
+          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_2);
+      if (read_buffer[3] == 0x01)
+          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_3);
+      if (read_buffer[4] == 0x01)
+          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_4);
+      if (read_buffer[5] == 0x01)
+          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_5);
+      printf("LED complete.");
+      break;
+    }
+    case 0x02: // 电机控制
+    {
+      int32_t pwm_value = 0;
+      memcpy(&pwm_value, read_buffer + 2, sizeof(int32_t));
+
+      printf("pwm_value: %d, motor id: %d\r\n", pwm_value, read_buffer[0]);
+      motor_drive_instruct(read_buffer[0], pwm_value);
+      break;
+    }
+    case 0x03: // 将当前位置设置为新的零点
+    {
+      if(read_buffer[0] == motor_pid[0].motor_id)
+      {
+        pid_parameter_init(&motor_pid[0], motor_pid[0].motor_id, htim2);
+        uint8_t return_data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        HAL_UART_Transmit(&huart1, return_data, sizeof(return_data), 500);
+        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[0].motor_id, motor_pid[0].pos_set,
+        //                                                    motor_pid[0].motor_id, motor_pid[0].pos_curr);
+      }
+      else if(read_buffer[0] == motor_pid[1].motor_id)
+      {
+        pid_parameter_init(&motor_pid[1], motor_pid[1].motor_id, htim3);
+        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[1].motor_id, motor_pid[1].pos_set,
+        //                                                    motor_pid[1].motor_id, motor_pid[1].pos_curr);
+      }
+      break;
+    }
+    case 0x04: // 电机的位置PID控制
+    {
+      float pos_set = 0;
+      memcpy(&pos_set, read_buffer + 2, sizeof(float));
+      
+      if(read_buffer[0] == motor_pid[0].motor_id)
+      {
+        motor_pid[0].pos_set = pos_set;
+        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[0].motor_id, motor_pid[0].pos_set,
+        //                                                    motor_pid[0].motor_id, motor_pid[0].pos_curr);
+        uint8_t return_data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        HAL_UART_Transmit(&huart1, return_data, sizeof(return_data), 500);
+      }
+      else if(read_buffer[0] == motor_pid[1].motor_id)
+      {
+        motor_pid[1].pos_set = pos_set;
+        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[1].motor_id, motor_pid[1].pos_set,
+        //                                                    motor_pid[1].motor_id, motor_pid[1].pos_curr);
+        uint8_t return_data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        HAL_UART_Transmit(&huart1, return_data, sizeof(return_data), 500);
+      }
+      break;
+    }
+  }
+}
+
+/**
+  * @brief      CRC循环冗余校验
+  * @param[in]  待校验的数组
+  * @param[in]  待校验的数组的大小
+  * @param[out] CRC码低字节
+  * @param[out] CRC码高字节
+  * @return     none
+  */
+void CRC16_Modbus(uint8_t input[], int size, uint8_t* low_value, uint8_t* high_value)
+{
+  uint16_t crc = 0xffff;
+  for (int n = 0; n < size; n++) {/*此处的6 -- 要校验的位数为6个*/
+    crc = input[n] ^ crc;
+    for (int i = 0; i < 8; i++) {  /*此处的8 -- 指每一个char类型又8bit，每bit都要处理*/
+      if (crc & 0x01) {
+        crc = crc >> 1;
+        crc = crc ^ 0xa001;
+      }
+      else {
+        crc = crc >> 1;
+      }
+    }
+  }
+  *low_value = crc & 0xFF;
+  *high_value = (uint8_t)(crc >> 8);
+}
+
+// 重定向c库函数printf到串口DEBUG_USART，重定向后可使用printf函数
+int fputc(int ch, FILE *f)
+{
+  /* 发送一个字节数据到串口DEBUG_USART */
+  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 1000);
+  return (ch);
+}
+
+// 重定向c库函数scanf到串口DEBUG_USART，重写向后可使用scanf、getchar等函数
+int fgetc(FILE *f)
+{
+  int ch;
+  HAL_UART_Receive(&huart2, (uint8_t *)&ch, 1, 1000);	
+  return (ch);
+}
 /* USER CODE END 1 */

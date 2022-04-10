@@ -29,7 +29,7 @@ extern "C" {
 #include "main.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "stdio.h"
 /* USER CODE END Includes */
 
 extern UART_HandleTypeDef huart2;
@@ -44,7 +44,12 @@ void MX_USART2_UART_Init(void);
 void MX_USART3_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
+void UART_IDLECallBack(UART_HandleTypeDef *huart);
+void PROTOCOL_Handle(UART_HandleTypeDef *huart);
+void CRC16_Modbus(uint8_t input[], int size, uint8_t* low_value, uint8_t* high_value);
 
+int fputc(int ch, FILE *f);
+int fgetc(FILE *f);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

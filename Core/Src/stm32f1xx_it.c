@@ -20,6 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f1xx_it.h"
+#include "usart.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -209,19 +210,14 @@ void USART2_IRQHandler(void)
   /* USER CODE END USART2_IRQn 0 */
   HAL_UART_IRQHandler(&huart2);
   /* USER CODE BEGIN USART2_IRQn 1 */
-	volatile uint8_t receive;
-	if(huart2.Instance->SR & UART_FLAG_RXNE)
-	{
-		receive = huart2.Instance->DR;
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
-	}
-	//idle interrupt 空闲中断
-	else if(huart2.Instance->SR & UART_FLAG_IDLE)
-	{
-		receive = huart2.Instance->DR;
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-	}
-  /* USER CODE END USART2_IRQn 1 */
+	
+	// 判断是否为空闲中断，若是空闲中断则进入空闲中断处理函数
+  if(__HAL_UART_GET_FLAG(&huart2, UART_FLAG_IDLE) != RESET)
+  {
+    UART_IDLECallBack(&huart2);
+  }
+  
+	/* USER CODE END USART2_IRQn 1 */
 }
 
 /**
@@ -234,18 +230,13 @@ void USART3_IRQHandler(void)
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
   /* USER CODE BEGIN USART3_IRQn 1 */
-	volatile uint8_t receive;
-	if(huart3.Instance->SR & UART_FLAG_RXNE)
-	{
-		receive = huart3.Instance->DR;
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
-	}
-	//idle interrupt 空闲中断
-	else if(huart3.Instance->SR & UART_FLAG_IDLE)
-	{
-		receive = huart3.Instance->DR;
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-	}
+
+	// 判断是否为空闲中断，若是空闲中断则进入空闲中断处理函数
+  if(__HAL_UART_GET_FLAG(&huart3, UART_FLAG_IDLE) != RESET)
+  {
+    UART_IDLECallBack(&huart3);
+  }
+	
   /* USER CODE END USART3_IRQn 1 */
 }
 
