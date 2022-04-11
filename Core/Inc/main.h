@@ -62,6 +62,10 @@ extern uint8_t read_buffer_uart2[BUFFER_LENGTH + 1];
 extern int current_buffer_length_uart3;
 extern uint8_t single_buffer_uart3;
 extern uint8_t read_buffer_uart3[BUFFER_LENGTH + 1];
+
+extern int32_t steer;
+extern int32_t speed;
+extern int32_t timeout_count;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
@@ -73,7 +77,7 @@ extern uint8_t read_buffer_uart3[BUFFER_LENGTH + 1];
 #define PWM_RESOLUTION 20000
 #define TIM_PSC_APB2 72
 /* USER CODE BEGIN Private defines */
-
+#define TIMEOUT 100
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

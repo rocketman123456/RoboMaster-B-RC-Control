@@ -21,7 +21,9 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-
+#include "stdio.h"
+#include "stdint.h"
+#include "string.h"
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart2;
@@ -237,12 +239,14 @@ void UART_IDLECallBack(UART_HandleTypeDef *huart)
   if(huart == &huart2)
   {
     current_buffer_length_uart2 = 0;
+		timeout_count = 0;
     PROTOCOL_Handle(huart);
     __HAL_UART_CLEAR_IDLEFLAG(huart); // 清除空闲中断标志(否则会一直不断进入中断)
   }
   if(huart == &huart3)
   {
     current_buffer_length_uart2 = 0;
+		timeout_count = 0;
     PROTOCOL_Handle(huart);
     __HAL_UART_CLEAR_IDLEFLAG(huart); // 清除空闲中断标志(否则会一直不断进入中断)
   }
@@ -250,82 +254,69 @@ void UART_IDLECallBack(UART_HandleTypeDef *huart)
 
 /**
   * @brief      上下位机通讯协议
+	* 
+	* 
+	* 
   * @return     none
   */
 void PROTOCOL_Handle(UART_HandleTypeDef *huart)
 {
-  // CRC校验
-  uint8_t low_value = 0x00;
-  uint8_t high_value = 0x00;
-  CRC16_Modbus(read_buffer, 6, &low_value, &high_value);
-  if (read_buffer[6] != low_value || read_buffer[7] != high_value)
-      return;
-  switch (read_buffer[1])
+	uint8_t low_value = 0x00;
+	uint8_t high_value = 0x00;
+	if(huart == &huart2)
   {
-    case 0x01: // 控制灯改变亮灭状态
-    {
-      if (read_buffer[2] == 0x01)
-          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_2);
-      if (read_buffer[3] == 0x01)
-          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_3);
-      if (read_buffer[4] == 0x01)
-          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_4);
-      if (read_buffer[5] == 0x01)
-          HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_5);
-      printf("LED complete.");
-      break;
-    }
-    case 0x02: // 电机控制
-    {
-      int32_t pwm_value = 0;
-      memcpy(&pwm_value, read_buffer + 2, sizeof(int32_t));
-
-      printf("pwm_value: %d, motor id: %d\r\n", pwm_value, read_buffer[0]);
-      motor_drive_instruct(read_buffer[0], pwm_value);
-      break;
-    }
-    case 0x03: // 将当前位置设置为新的零点
-    {
-      if(read_buffer[0] == motor_pid[0].motor_id)
-      {
-        pid_parameter_init(&motor_pid[0], motor_pid[0].motor_id, htim2);
-        uint8_t return_data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        HAL_UART_Transmit(&huart1, return_data, sizeof(return_data), 500);
-        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[0].motor_id, motor_pid[0].pos_set,
-        //                                                    motor_pid[0].motor_id, motor_pid[0].pos_curr);
-      }
-      else if(read_buffer[0] == motor_pid[1].motor_id)
-      {
-        pid_parameter_init(&motor_pid[1], motor_pid[1].motor_id, htim3);
-        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[1].motor_id, motor_pid[1].pos_set,
-        //                                                    motor_pid[1].motor_id, motor_pid[1].pos_curr);
-      }
-      break;
-    }
-    case 0x04: // 电机的位置PID控制
-    {
-      float pos_set = 0;
-      memcpy(&pos_set, read_buffer + 2, sizeof(float));
-      
-      if(read_buffer[0] == motor_pid[0].motor_id)
-      {
-        motor_pid[0].pos_set = pos_set;
-        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[0].motor_id, motor_pid[0].pos_set,
-        //                                                    motor_pid[0].motor_id, motor_pid[0].pos_curr);
-        uint8_t return_data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        HAL_UART_Transmit(&huart1, return_data, sizeof(return_data), 500);
-      }
-      else if(read_buffer[0] == motor_pid[1].motor_id)
-      {
-        motor_pid[1].pos_set = pos_set;
-        //printf("pos_set[%02X]: %f, pos_curr[%02X]: %f\r\n", motor_pid[1].motor_id, motor_pid[1].pos_set,
-        //                                                    motor_pid[1].motor_id, motor_pid[1].pos_curr);
-        uint8_t return_data[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        HAL_UART_Transmit(&huart1, return_data, sizeof(return_data), 500);
-      }
-      break;
-    }
-  }
+		// CRC校验
+		CRC16_Modbus(read_buffer_uart2, 6, &low_value, &high_value);
+		//if (read_buffer_uart2[6] != low_value || read_buffer_uart2[7] != high_value)
+		//		return;
+		switch (read_buffer_uart2[1])
+		{
+			case 0x01: // 控制灯改变亮灭状态
+			{
+				
+			} break;
+			case 0x02:
+			{
+				memcpy(&steer, read_buffer_uart2 + 2, sizeof(int32_t));
+				if(steer > 500) {
+					steer = 500;
+				} else if(steer < -500) {
+					steer = -500;
+				}
+			} break;
+			case 0x03:
+			{
+				memcpy(&speed, read_buffer_uart2 + 2, sizeof(int32_t));
+				if(speed > 500) {
+					speed = 500;
+				} else if(speed < -500) {
+					speed = -500;
+				}
+			} break;
+		}
+	}
+	if(huart == &huart3)
+  {
+		// CRC校验
+		CRC16_Modbus(read_buffer_uart3, 6, &low_value, &high_value);
+		//if (read_buffer_uart2[6] != low_value || read_buffer_uart2[7] != high_value)
+		//		return;
+		switch (read_buffer_uart3[1])
+		{
+			case 0x01: // 控制灯改变亮灭状态
+			{
+				
+			} break;
+			case 0x02:
+			{
+				memcpy(&steer, read_buffer_uart3 + 2, sizeof(int32_t));
+			} break;
+			case 0x03:
+			{
+				memcpy(&speed, read_buffer_uart3 + 2, sizeof(int32_t));
+			} break;
+		}
+	}
 }
 
 /**

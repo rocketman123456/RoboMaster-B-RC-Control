@@ -214,6 +214,7 @@ void USART2_IRQHandler(void)
 	// 判断是否为空闲中断，若是空闲中断则进入空闲中断处理函数
   if(__HAL_UART_GET_FLAG(&huart2, UART_FLAG_IDLE) != RESET)
   {
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
     UART_IDLECallBack(&huart2);
   }
   
@@ -234,6 +235,7 @@ void USART3_IRQHandler(void)
 	// 判断是否为空闲中断，若是空闲中断则进入空闲中断处理函数
   if(__HAL_UART_GET_FLAG(&huart3, UART_FLAG_IDLE) != RESET)
   {
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_1);
     UART_IDLECallBack(&huart3);
   }
 	

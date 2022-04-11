@@ -33,9 +33,14 @@ int current_buffer_length_uart2 = 0;
 uint8_t single_buffer_uart2 = 0xFF;
 uint8_t read_buffer_uart2[BUFFER_LENGTH + 1];
 
-int current_buffer_length_3 = 0;
-uint8_t single_buffer_3 = 0xFF;
+int current_buffer_length_uart3 = 0;
+uint8_t single_buffer_uart3 = 0xFF;
 uint8_t read_buffer_uart3[BUFFER_LENGTH + 1];
+
+const int mid_point = 1500;
+int32_t steer = 0;
+int32_t speed = 0;
+int32_t timeout_count = 0;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -109,6 +114,9 @@ int main(void)
   __HAL_UART_ENABLE_IT(&huart2, UART_IT_IDLE);  // idle interrupt
   //__HAL_UART_ENABLE_IT(&huart3, UART_IT_RXNE);  // receive interrupt
   __HAL_UART_ENABLE_IT(&huart3, UART_IT_IDLE);  // idle interrupt
+	
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -118,29 +126,16 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		//HAL_UART_Transmit(&huart2, "RoboMaster\r\n", 12, 100);
-		//HAL_UART_Transmit(&huart3, "RoboMaster\r\n", 12, 100);
-		//HAL_Delay(100);
-		
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 2000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, 2000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, 2000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_4, 2000);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
-		HAL_Delay(1000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 1000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, 1000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, 1000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_4, 1000);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_RESET);
-		HAL_Delay(1000);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, 1500);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, 1500);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, 1500);
-		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_4, 1500);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1, GPIO_PIN_SET);
-		HAL_Delay(2000);
+		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_1, mid_point + steer);
+		__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_2, mid_point + speed);
+		//__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_3, mid_point);
+		//__HAL_TIM_SetCompare(&htim1, TIM_CHANNEL_4, mid_point);
+		timeout_count++;
+		if(timeout_count > TIMEOUT) {
+			steer = 0;
+			speed = 0;
+		}
+		HAL_Delay(10);
   }
   /* USER CODE END 3 */
 }
